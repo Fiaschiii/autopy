@@ -1,1 +1,34 @@
+# Ambiente virtual (cada máquina cria o seu a partir do requirements.txt)
 venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Configuração local (versionamos apenas o settings.example.yaml)
+config/settings.yaml
+
+# Saídas geradas a cada execução
+logs/
+reports/
+screenshots/
+
+# "Banco de dados" do app de demonstração
+demo_app/db.csv
+
+# Planilhas reais (versionamos apenas a planilha de exemplo)
+data/*.xlsx
+!data/exemplo.xlsx
+~$*.xlsx
+
+# Build do executável (PyInstaller)
+build/
+dist/
+
+# IDEs / SO
+.vscode/
+.idea/
+Thumbs.db

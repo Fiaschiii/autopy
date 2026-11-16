@@ -1,0 +1,7 @@
+# Dependências diretas do projeto (versões fixadas para reprodutibilidade)
+PyAutoGUI==0.9.54       # controle de mouse/teclado e captura de tela
+PyGetWindow==0.0.9      # localizar/ativar a janela do sistema-alvo
+opencv-python==5.0.0.93 # habilita locateOnScreen(confidence=...)
+openpyxl==3.1.5         # leitura da planilha de entrada
+PyYAML==6.0.3           # leitura do arquivo de configuração
+keyboard==0.13.5        # hotkey global de parada de emergência

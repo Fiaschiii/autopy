@@ -1,0 +1,53 @@
+# ------------------------------------------------------------------
+# Configuração do robô. Copie este arquivo para "settings.yaml" e
+# ajuste os valores para a sua máquina (settings.yaml não é versionado).
+# ------------------------------------------------------------------
+
+app:
+  # Título (ou trecho do título) da janela do sistema-alvo
+  window_title: "SisEscola 98"
+  # Comando para abrir o sistema caso ele não esteja aberto
+  launch_command: "python demo_app/fake_erp.py"
+  # Credenciais de acesso ao sistema-alvo
+  username: "admin"
+  password: "admin"
+
+input:
+  # Planilha com os registros a cadastrar
+  spreadsheet: "data/exemplo.xlsx"
+  sheet: "Alunos"
+
+vision:
+  # Pasta com as imagens de referência (templates) das telas
+  templates_dir: "assets/templates"
+  # Tolerância do reconhecimento de imagem (0.0 a 1.0; requer OpenCV)
+  confidence: 0.85
+  # Converter para tons de cinza antes de comparar (mais rápido)
+  grayscale: true
+
+timing:
+  # Tempo máximo (s) esperando uma tela/elemento aparecer
+  default_timeout: 15
+  # Intervalo (s) entre cada tentativa de encontrar uma imagem
+  poll_interval: 0.25
+  # Pausa (s) automática do PyAutoGUI entre cada ação
+  action_pause: 0.05
+  # Intervalo (s) entre teclas ao digitar
+  typing_interval: 0.01
+
+retry:
+  # Quantas vezes tentar cadastrar um registro antes de desistir dele
+  max_attempts: 3
+  # Espera inicial (s) entre tentativas; dobra a cada falha (backoff)
+  backoff_seconds: 1.0
+
+safety:
+  # Tecla que interrompe o robô imediatamente
+  stop_hotkey: "esc"
+  # Mover o mouse para o canto superior esquerdo também interrompe
+  failsafe: true
+
+output:
+  logs_dir: "logs"
+  reports_dir: "reports"
+  screenshots_dir: "screenshots"
