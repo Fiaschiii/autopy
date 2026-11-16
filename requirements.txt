@@ -5,3 +5,4 @@ opencv-python==5.0.0.93 # habilita locateOnScreen(confidence=...)
 openpyxl==3.1.5         # leitura da planilha de entrada
 PyYAML==6.0.3           # leitura do arquivo de configuração
 keyboard==0.13.5        # hotkey global de parada de emergência
+pyperclip==1.11.0       # colar textos com acentos (pyautogui.write só digita ASCII)
