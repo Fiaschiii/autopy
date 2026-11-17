@@ -357,7 +357,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="SisEscola 98 — sistema legado fictício")
     parser.add_argument("--usuario", default="admin")
     parser.add_argument("--senha", default="admin")
-    parser.add_argument("--db", default=str(Path(__file__).with_name("db.csv")),
+    # No .exe, __file__ aponta para uma pasta temporária: grava ao lado do executável
+    base = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+    parser.add_argument("--db", default=str(base / "db.csv"),
                         help="arquivo CSV onde os registros são gravados")
     parser.add_argument("--lentidao-min", type=float, default=0.3,
                         help="atraso mínimo (s) ao trocar de tela")

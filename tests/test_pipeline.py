@@ -89,6 +89,14 @@ def test_one_bad_record_does_not_stop_the_others(robot):
     assert [r.status for r in results] == [Status.SUCESSO, Status.REJEITADO, Status.SUCESSO]
 
 
+def test_unexpected_error_fails_only_that_record(robot):
+    robot.cadastro.salvar.side_effect = [ValueError("bug"), SaveResult(ok=True)]
+    results = run_pipeline(robot, [make_record(2), make_record(3)])
+    assert [r.status for r in results] == [Status.FALHA, Status.SUCESSO]
+    assert "Erro inesperado" in results[0].message
+    assert results[0].attempts == 1  # erro não previsto não é re-tentado
+
+
 def test_login_failure_is_fatal(robot):
     robot.go_to_cadastro.side_effect = LoginFailedError("senha errada")
     results = run_pipeline(robot, [make_record(row) for row in (2, 3)])

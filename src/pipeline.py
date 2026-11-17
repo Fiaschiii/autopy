@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 
 import pyautogui
 
@@ -80,6 +79,13 @@ class Robot:
         raise ElementNotFoundError("Não foi possível chegar à tela de cadastro")
 
     # -- registro -------------------------------------------------------------
+    def _safe_screenshot(self, label: str):
+        try:
+            return self.vision.screenshot(self.settings.output.screenshots_dir, label)
+        except Exception as exc:  # o print é evidência, nunca motivo de nova falha
+            log.debug("Não foi possível salvar o print: %s", exc)
+            return None
+
     def process(self, record: Record) -> RecordResult:
         start = time.monotonic()
         label = f"linha{record.row}"
@@ -116,8 +122,16 @@ class Robot:
                                        "Salvar, confira se não houve duplicidade")
         except RobotError as exc:
             result.message = f"{type(exc).__name__}: {exc}"
-            result.screenshot = self.vision.screenshot(
-                self.settings.output.screenshots_dir, f"falha_{label}")
+            result.screenshot = self._safe_screenshot(f"falha_{label}")
+        except (RobotStopped, LoginFailedError, TemplateNotFoundError,
+                pyautogui.FailSafeException):
+            raise  # tratados pelo run_pipeline (encerram a execução)
+        except Exception as exc:
+            # Erro não previsto: registra com detalhes e segue para o próximo
+            # registro, em vez de derrubar a execução e perder o relatório.
+            log.exception("Erro inesperado na linha %d", record.row)
+            result.message = f"Erro inesperado: {type(exc).__name__}: {exc}"
+            result.screenshot = self._safe_screenshot(f"erro_{label}")
         finally:
             result.attempts = attempts
             result.duration = time.monotonic() - start
@@ -161,7 +175,3 @@ def required_templates() -> set[str]:
     for screen in (LoginScreen, MenuScreen, CadastroScreen):
         names |= set(screen.TEMPLATES)
     return names
-
-
-def default_results_path(settings: Settings) -> Path:
-    return settings.output.reports_dir / f"resultado_{time.strftime('%Y%m%d_%H%M%S')}.csv"

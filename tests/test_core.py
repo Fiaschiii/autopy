@@ -126,6 +126,14 @@ def test_wait_for_times_out(monkeypatch):
         vision.wait_for("botao")
 
 
+def test_find_treats_tiny_search_area_as_not_found(tmp_path):
+    """Janela ainda abrindo (menor que o template) = 'ainda não apareceu'."""
+    from PIL import Image
+    Image.new("RGB", (50, 20), "red").save(tmp_path / "botao.png")
+    vision = Vision(tmp_path)
+    assert vision.find("botao", haystack=Image.new("RGB", (10, 10))) is None
+
+
 def test_wait_for_respects_emergency_stop(monkeypatch):
     vision = Vision(Path("."), timeout=10, poll_interval=0.01)
     monkeypatch.setattr(vision, "find", lambda name: None)

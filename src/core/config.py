@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+#: True quando rodando como executável gerado pelo PyInstaller
+FROZEN = getattr(sys, "frozen", False)
+
+# Pasta-base para config/, assets/, data/ e as saídas (logs, relatórios...).
+# No .exe, é a pasta onde o executável está (e não a pasta temporária para
+# onde o PyInstaller extrai o código), para que o usuário possa editar a
+# configuração e trocar templates/planilha sem recompilar.
+PROJECT_ROOT = Path(sys.executable).parent if FROZEN else Path(__file__).resolve().parents[2]
 DEFAULT_SETTINGS = PROJECT_ROOT / "config" / "settings.yaml"
 EXAMPLE_SETTINGS = PROJECT_ROOT / "config" / "settings.example.yaml"
 

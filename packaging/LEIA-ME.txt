@@ -1,0 +1,33 @@
+autopy — Robô RPA de cadastro em sistema legado
+================================================
+
+Conteúdo desta pasta
+--------------------
+  autopy.exe        o robô
+  SisEscola98.exe   sistema legado de demonstração (o robô o abre sozinho)
+  config\           configuração (settings.yaml)
+  assets\templates\ imagens que o robô usa para reconhecer as telas
+  data\             planilha de entrada (exemplo.xlsx, dados fictícios)
+
+Como usar
+---------
+  1. Dê dois cliques em autopy.exe.
+  2. Após a contagem regressiva, NÃO use o mouse nem o teclado.
+  3. Ao final, o relatório abre no navegador (pasta reports\).
+
+  Para PARAR o robô a qualquer momento: tecla Esc, ou leve o mouse ao
+  canto superior esquerdo da tela.
+
+Pelo terminal (cmd/PowerShell) há outras opções:
+  autopy.exe --check         confere se está tudo certo (não usa mouse/teclado)
+  autopy.exe --dry-run       mostra o que seria cadastrado
+  autopy.exe --limite 5      cadastra só os 5 primeiros registros
+  autopy.exe --help          todas as opções
+
+Observações
+-----------
+  * Requer Windows. Não é preciso instalar Python.
+  * Os alunos cadastrados ficam em db.csv. Apague esse arquivo para rodar
+    a demonstração do zero (senão todos serão recusados por CPF duplicado).
+  * Para usar outra planilha, troque data\exemplo.xlsx ou ajuste
+    config\settings.yaml.

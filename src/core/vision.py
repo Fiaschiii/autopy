@@ -101,6 +101,13 @@ class Vision:
                 box = pyautogui.locateOnScreen(needle, region=self._region(), **options)
         except _NOT_FOUND:
             return None
+        except ValueError as exc:
+            # Área de busca menor que o template (ex.: janela ainda abrindo ou
+            # restaurando). Para quem espera, isso é só "ainda não apareceu".
+            if "exceed" not in str(exc):
+                raise
+            log.debug("Área de busca menor que o template '%s'; ignorando", name)
+            return None
         if box is None:
             return None
         return Match(name, int(box.left), int(box.top), int(box.width), int(box.height))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ctypes
+import ctypes.wintypes
 import logging
 import shlex
 import subprocess
@@ -11,7 +12,7 @@ import time
 
 import pygetwindow as gw
 
-from .config import PROJECT_ROOT
+from .config import FROZEN, PROJECT_ROOT
 from .exceptions import WindowFocusError, WindowNotFoundError
 from .safety import check_stop, interruptible_sleep
 
@@ -25,6 +26,55 @@ def window_pid(hwnd: int) -> int:
     pid = ctypes.c_ulong()
     ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
     return pid.value
+
+
+SW_RESTORE = 9
+
+
+def force_foreground(hwnd: int) -> None:
+    """Traz a janela para frente contornando a "trava de primeiro plano".
+
+    O Windows só deixa um processo trocar a janela em primeiro plano se ele
+    recebeu a última entrada do usuário; caso contrário SetForegroundWindow
+    falha (é por isso que o activate() falha às vezes). Anexando
+    temporariamente a nossa thread à fila de entrada da janela que está na
+    frente, ganhamos essa permissão, sem precisar simular teclas.
+    """
+    user32 = ctypes.windll.user32
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, SW_RESTORE)
+    foreground = user32.GetForegroundWindow()
+    fg_thread = user32.GetWindowThreadProcessId(foreground, None)
+    our_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+    attached = fg_thread and fg_thread != our_thread and user32.AttachThreadInput(
+        our_thread, fg_thread, True)
+    try:
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+    finally:
+        if attached:
+            user32.AttachThreadInput(our_thread, fg_thread, False)
+
+
+DWMWA_EXTENDED_FRAME_BOUNDS = 9
+
+# Tamanho mínimo (px) para considerar a janela "pronta" (ver AppWindow.is_ready)
+MIN_READY_SIZE = 100
+
+
+def visible_bounds(hwnd: int) -> tuple[int, int, int, int] | None:
+    """(left, top, right, bottom) da parte visível da janela, sem as bordas
+    invisíveis do Windows 10/11. None se o DWM não estiver disponível."""
+    rect = ctypes.wintypes.RECT()
+    try:
+        result = ctypes.windll.dwmapi.DwmGetWindowAttribute(
+            ctypes.wintypes.HWND(hwnd), DWMWA_EXTENDED_FRAME_BOUNDS,
+            ctypes.byref(rect), ctypes.sizeof(rect))
+    except (AttributeError, OSError):
+        return None
+    if result != 0:
+        return None
+    return rect.left, rect.top, rect.right, rect.bottom
 
 
 class AppWindow:
@@ -52,15 +102,29 @@ class AppWindow:
             raise WindowNotFoundError(f"Janela '{self.title}' não encontrada")
         return window
 
-    def wait_until_open(self, timeout: float | None = None):
-        deadline = time.monotonic() + (timeout or self.timeout)
+    def is_ready(self, window) -> bool:
+        """Janela visível, não minimizada e já com tamanho real.
+
+        A janela passa a existir (com título) ANTES de terminar de abrir, e
+        durante a animação de restaurar ela fica minúscula por alguns
+        instantes. Procurar imagens nesse momento não faz sentido.
+        """
+        if window is None or window.isMinimized or not window.visible:
+            return False
+        _, _, width, height = self._region_of(window)
+        return width >= MIN_READY_SIZE and height >= MIN_READY_SIZE
+
+    def wait_until_ready(self, timeout: float | None = None):
+        """Espera a janela existir E estar pronta (ver is_ready)."""
+        timeout = timeout or self.timeout
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             check_stop()
             window = self.find()
-            if window is not None:
+            if self.is_ready(window):
                 return window
             interruptible_sleep(self.poll_interval)
-        raise WindowNotFoundError(f"Janela '{self.title}' não abriu em {timeout or self.timeout}s")
+        raise WindowNotFoundError(f"Janela '{self.title}' não ficou pronta em {timeout}s")
 
     def ensure_open(self):
         """Usa a janela se já estiver aberta; senão executa o launch_command."""
@@ -72,10 +136,10 @@ class AppWindow:
             raise WindowNotFoundError(f"Janela '{self.title}' não está aberta")
         log.info("Abrindo o sistema: %s", self.launch_command)
         command = shlex.split(self.launch_command, posix=False)
-        if command[0].lower() in ("python", "python.exe"):
+        if command[0].lower() in ("python", "python.exe") and not FROZEN:
             command[0] = sys.executable  # usa o Python do venv atual
         self._process = subprocess.Popen(command, cwd=PROJECT_ROOT)
-        return self.wait_until_open()
+        return self.wait_until_ready()
 
     def close_launched(self) -> None:
         """Encerra o processo, se tiver sido aberto pelo próprio robô."""
@@ -111,13 +175,15 @@ class AppWindow:
 
         O `activate()` do PyGetWindow tem um bug conhecido no Windows: pode
         lançar PyGetWindowException com "código 0 - operação concluída com
-        êxito" mesmo quando funcionou, ou falhar silenciosamente. Por isso o
-        resultado nunca é confiado: o foco é verificado de fato e, se
-        necessário, usamos o truque de minimizar/restaurar.
+        êxito" mesmo quando funcionou, ou falhar por causa da trava de
+        primeiro plano. Por isso o resultado nunca é confiado: o foco é
+        verificado de fato, com três estratégias em sequência.
         """
         window = self.get()
         if window.isMinimized:
-            window.restore()
+            self._restore(window)
+
+        # 1) caminho normal
         try:
             window.activate()
         except gw.PyGetWindowException as exc:
@@ -125,12 +191,39 @@ class AppWindow:
         if self._wait_active(1.0):
             return
 
-        log.debug("Foco não confirmado; tentando minimizar/restaurar")
+        # 2) contornando a trava de primeiro plano
+        log.debug("Foco não confirmado; usando AttachThreadInput")
+        force_foreground(window._hWnd)
+        if self._wait_active(1.0):
+            return
+
+        # 3) último recurso: minimizar e restaurar
+        log.debug("Foco ainda não confirmado; tentando minimizar/restaurar")
         window.minimize()
-        interruptible_sleep(0.2)
-        window.restore()
+        self._wait_minimized(window, 1.0)
+        self._restore(window)
+        force_foreground(window._hWnd)
         if not self._wait_active(1.5):
             raise WindowFocusError(f"Não foi possível dar foco à janela '{self.title}'")
+
+    @staticmethod
+    def _wait_minimized(window, seconds: float) -> None:
+        deadline = time.monotonic() + seconds
+        while not window.isMinimized and time.monotonic() < deadline:
+            interruptible_sleep(0.05)
+        interruptible_sleep(0.3)  # deixa a animação de minimizar terminar
+
+    def _restore(self, window, attempts: int = 3) -> None:
+        """Restaura e espera a janela ficar pronta, repetindo se o Windows
+        ignorar o pedido (acontece se ele chega durante uma animação)."""
+        for _ in range(attempts):
+            window.restore()
+            try:
+                self.wait_until_ready(timeout=1.5)
+                return
+            except WindowNotFoundError:
+                log.debug("Restaurar foi ignorado; tentando de novo")
+        raise WindowFocusError(f"A janela '{self.title}' não saiu do estado minimizado")
 
     def require_focus(self) -> None:
         """Garante o foco antes de qualquer ação de teclado/mouse."""
@@ -141,6 +234,18 @@ class AppWindow:
 
     # -- geometria ------------------------------------------------------------
     def region(self) -> Region:
-        """Área da janela na tela, usada para restringir a busca de imagens."""
-        w = self.get()
-        return (max(w.left, 0), max(w.top, 0), w.width, w.height)
+        """Área VISÍVEL da janela na tela (busca de imagens e gravação).
+
+        No Windows 10/11 o retângulo informado pelo PyGetWindow inclui uma
+        borda invisível de ~8 px (usada para redimensionar). Capturar essa
+        área mostraria pedaços do que está ATRÁS da janela. O DWM informa o
+        retângulo realmente desenhado.
+        """
+        return self._region_of(self.get())
+
+    @staticmethod
+    def _region_of(w) -> Region:
+        left, top, right, bottom = visible_bounds(w._hWnd) or (
+            w.left, w.top, w.left + w.width, w.top + w.height)
+        left, top = max(left, 0), max(top, 0)
+        return (left, top, max(right - left, 0), max(bottom - top, 0))
