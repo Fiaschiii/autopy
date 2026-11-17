@@ -25,6 +25,10 @@ class WindowFocusError(RobotError):
     """
 
 
+class LoginFailedError(Exception):
+    """O sistema recusou usuário/senha. Fatal: não adianta tentar de novo."""
+
+
 class TemplateNotFoundError(Exception):
     """A imagem de referência (template) não existe em disco. Erro de configuração."""
 

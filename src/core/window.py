@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import logging
 import shlex
 import subprocess
@@ -17,6 +18,13 @@ from .safety import check_stop, interruptible_sleep
 log = logging.getLogger(__name__)
 
 Region = tuple[int, int, int, int]  # (left, top, width, height)
+
+
+def window_pid(hwnd: int) -> int:
+    """PID do processo dono de uma janela (Windows)."""
+    pid = ctypes.c_ulong()
+    ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return pid.value
 
 
 class AppWindow:
@@ -77,9 +85,18 @@ class AppWindow:
 
     # -- foco -----------------------------------------------------------------
     def is_active(self) -> bool:
+        """True se a janela ativa pertence ao sistema-alvo.
+
+        Compara o PROCESSO, não a janela: quando o sistema abre uma caixa de
+        mensagem (ex.: "Sucesso"), ela é a janela ativa, e ainda assim o foco
+        está corretamente no sistema-alvo.
+        """
         window = self.find()
         active = gw.getActiveWindow()
-        return bool(window and active and window._hWnd == active._hWnd)
+        if not (window and active):
+            return False
+        return (window._hWnd == active._hWnd
+                or window_pid(window._hWnd) == window_pid(active._hWnd))
 
     def _wait_active(self, seconds: float) -> bool:
         deadline = time.monotonic() + seconds

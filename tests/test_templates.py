@@ -13,6 +13,7 @@ from PIL import Image
 
 from src.core.config import load_settings
 from src.core.vision import Vision
+from src.screens.base import FIELD_CLICK_OFFSET
 
 ROOT = Path(__file__).resolve().parent.parent
 SCREENS_DIR = ROOT / "tests" / "fixtures" / "screens"
@@ -65,3 +66,19 @@ def test_every_template_file_is_covered():
 def test_template_found_only_on_expected_screens(vision, screens, template):
     found = {name for name, img in screens.items() if vision.find(template, haystack=img)}
     assert found == EXPECTED[template]
+
+
+FIELDS_BY_SCREEN = {
+    "login": ["login_campo_usuario", "login_campo_senha"],
+    "cadastro": [f"cadastro_campo_{f}" for f in
+                 ("nome", "cpf", "nascimento", "turma", "responsavel", "telefone")],
+}
+
+
+@pytest.mark.parametrize("screen, template",
+                         [(s, t) for s, names in FIELDS_BY_SCREEN.items() for t in names])
+def test_field_click_point_lands_inside_the_input(vision, screens, screen, template):
+    """O robô clica à direita do rótulo: o ponto precisa cair no campo BRANCO."""
+    match = vision.find(template, haystack=screens[screen])
+    x, y = match.point(dx=FIELD_CLICK_OFFSET, anchor="right")
+    assert screens[screen].getpixel((x, y)) == (255, 255, 255)

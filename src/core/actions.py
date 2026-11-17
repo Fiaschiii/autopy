@@ -24,6 +24,9 @@ log = logging.getLogger(__name__)
 # depois a produz á. Digitá-los tecla a tecla corromperia o texto.
 DEAD_KEYS = set("'\"`~^")
 
+# Maior conteúdo esperado em um campo do sistema-alvo (usado para limpá-lo)
+MAX_FIELD_LENGTH = 80
+
 
 def is_typeable(text: str) -> bool:
     """True se é seguro digitar o texto tecla a tecla com `pyautogui.write`.
@@ -82,16 +85,19 @@ class Actions:
         if previous is not None:
             pyperclip.copy(previous)
 
-    def clear_field(self) -> None:
-        """Apaga o conteúdo do campo com foco (Home, Shift+End, Delete).
+    def clear_field(self, max_length: int = MAX_FIELD_LENGTH) -> None:
+        """Apaga o conteúdo do campo com foco: End + Backspace (max_length vezes).
 
-        Funciona em praticamente qualquer campo, ao contrário de Ctrl+A,
-        que em alguns sistemas legados não seleciona tudo.
+        Por que não Shift+End ou Ctrl+A?
+          * End/Home são "teclas estendidas" e o PyAutoGUI as envia sem esse
+            marcador. Com o NumLock ligado, o Windows SOLTA o Shift sozinho:
+            Shift+End vira só End, nada é selecionado e nada é apagado.
+          * Ctrl+A não seleciona tudo em muitos sistemas legados.
+        End sozinho funciona sempre; os Backspaces não dependem de seleção.
         """
         self._guard()
-        pyautogui.press("home")
-        pyautogui.hotkey("shift", "end")
-        pyautogui.press("delete")
+        pyautogui.press("end")
+        pyautogui.press("backspace", presses=max_length)
 
     def press(self, *keys: str) -> None:
         self._guard()
