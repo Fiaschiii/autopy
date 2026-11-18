@@ -7,19 +7,9 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [1.0.0] - 2026-11-18
+
 ### Adicionado
-- `src/main.py`: CLI com os modos `--check` (diagnóstico sem mouse/teclado),
-  `--dry-run`, `--limite`, `--inicio` e contagem regressiva antes de assumir o PC.
-- `src/pipeline.py`: o `Robot` navega até o cadastro venha de onde vier,
-  processa cada registro com retry e classifica o resultado em sucesso,
-  rejeitado, falha ou não processado. Também sinaliza possível duplicidade.
-- `src/records.py`: leitura da planilha (cabeçalho flexível, linhas vazias,
-  valores convertidos pelo Excel) e exportação do resultado em CSV.
-- Page Objects em `src/screens/` (login, menu e cadastro), com fechamento
-  automático de pop-ups e estabilização após trocar de tela.
-- `LoginFailedError`: senha recusada encerra a execução sem insistir.
-- Testes do pipeline com telas falsas, da leitura da planilha e dos pontos de
-  clique dos campos.
 - `src/report.py`: relatório HTML autocontido (prints embutidos, resumo,
   filtros por status, tema claro/escuro), aberto no navegador ao final.
   `--nao-abrir` desativa a abertura automática.
@@ -50,6 +40,22 @@ e o projeto adota o [Versionamento Semântico](https://semver.org/lang/pt-BR/).
   apareceu", em vez de encerrar o robô.
 - Erros inesperados num registro passam a marcá-lo como falha (com print) e o
   robô segue para o próximo, em vez de encerrar sem relatório.
+
+## [0.3.0] - 2026-11-16
+
+### Adicionado
+- `src/main.py`: CLI com os modos `--check` (diagnóstico sem mouse/teclado),
+  `--dry-run`, `--limite`, `--inicio` e contagem regressiva antes de assumir o PC.
+- `src/pipeline.py`: o `Robot` navega até o cadastro venha de onde vier,
+  processa cada registro com retry e classifica o resultado em sucesso,
+  rejeitado, falha ou não processado. Também sinaliza possível duplicidade.
+- `src/records.py`: leitura da planilha (cabeçalho flexível, linhas vazias,
+  valores convertidos pelo Excel) e exportação do resultado em CSV.
+- Page Objects em `src/screens/` (login, menu e cadastro), com fechamento
+  automático de pop-ups e estabilização após trocar de tela.
+- `LoginFailedError`: senha recusada encerra a execução sem insistir.
+- Testes do pipeline com telas falsas, da leitura da planilha e dos pontos de
+  clique dos campos.
 
 ## [0.2.0] - 2026-11-16
 
